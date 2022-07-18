@@ -30,12 +30,18 @@ pub extern fn nozzle_area_ratio(mach: f64, gamma: f64) -> f64
     return left * right;
 }
 
+/// Calculate the exhaust temperature exiting the nozzle
+/// 
+/// # Arguments
+/// - `throat_temp`: exhaust gas temperature at the throat
+/// - `gamma`: ratio of specific heats of the gas
+/// - `exit_mach`: mach value of exhaust at the exit
 #[no_mangle]
-pub extern fn nozzle_exit_temperature(temp_throat: f64, gamma: f64, mach_exit: f64) -> f64
+pub extern fn nozzle_exit_temperature(throat_temp: f64, gamma: f64, exit_mach: f64) -> f64
 {
-    let Tt = temp_throat;
+    let Tt = throat_temp;
     let y = gamma;
-    let M = mach_exit;
+    let M = exit_mach;
 
     let inner = 1.0 + (y - 1.0) / 2.0 * M * M;
 
@@ -134,19 +140,25 @@ pub extern fn nozzle_exit_pressure(throat_pressure: f64, gamma: f64, mach_exit: 
     return Pt * f64::powf(inner, exponent);
 }
 
+/// Iteratively calculate the mach value of the exhaust from the nozzle
+/// 
+/// # Arguments
+/// - `area_ratio`: area ratio of the nozzle (exit/throat)
+/// - `gamma`: Cp/Cv, isentropic expansion factor
+/// 
+/// # Returns
+/// Nozzle exit mach value, or -1 if a solution cannot be found
 #[no_mangle]
 pub extern fn nozzle_exit_mach(area_ratio: f64, gamma: f64) -> f64
 {
+    // Determine an upper limit for the root solver
     let mut upper_limit = 1.0;
     while nozzle_area_ratio(upper_limit, gamma) < area_ratio {
-        upper_limit += 1.0;
-        if upper_limit > 25.0 {
+        upper_limit *= 2.0;
+        if upper_limit > 128.0 {
             return -1.0;
         }
     }
-
-    //let m1 = super::nozzle_area_ratio(10.0, 1.22);
-    //panic!("{} {}", m0, m1);
 
     let mut conv = roots::SimpleConvergency { eps:0.01, max_iter:1000 };
     let root = roots::find_root_brent(
