@@ -12,3 +12,4 @@ crate-type = ["cdylib"]
 debug = 2
 
 [dependencies]
+roots = "0.0.7"
